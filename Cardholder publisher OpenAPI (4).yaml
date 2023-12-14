@@ -1,0 +1,229 @@
+openapi: 3.0.0
+info:
+  title: Cardholder - OpenAPI 3.0
+  description: |-
+    Icaros sends information about cardholders and their badges.
+    The PSA integration bus hosts the Cardholder API, which serves an enpoint where creation and updates of cardholders or badges can be published.
+  contact:
+    email: PSAA-IT-LAS-EDI@globalpsa.com
+  version: 1.0.0
+servers:
+  - url: https://beanr-editesb01.servers.hessenoordnatie.com:7097/cardholderrestapi/v1
+    description: The UAT server
+tags:
+  - name: cardholder
+    description: Everything about Cardholders
+    externalDocs:
+      description: More information
+      url: https://globalpsaemea.sharepoint.com/:w:/s/SCdriverauthentication/EVZaowWFFGVGrJ9i9BxqUFwBL8LtEfiiqVftOD1JYxodag?e=o4Ka9t
+paths:
+  /cardholder:
+    post:
+      tags:
+        - cardholder
+      summary: Update
+      requestBody:
+        description: update a cardholder
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Cardholder"
+        required: true
+      responses:
+        200:
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OKResponse'
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        401:
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        403:
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    Cardholder:
+      title: Cardholder identification
+      type: object
+      properties:
+        id:
+          type: number
+          description: >
+            Internal number of the cardholder in ICAROS. This number is unique and never changes for the cardholder
+        version:
+          type: number
+          description: >
+            The cardholder version. This number is incremented every time an update is occured for the cardholder in ICAROS. It can happen that the update occurs on cardholderfields that are not part of this cardholderData. Then the version number is changed but there is no change in the actual CardholderData.
+        data:
+          type: object
+          description: >
+            This object contains all the data of the cardholder. This can be null when the cardholdder is already deleted. A null can only occur in the resultset of a Cardholder GET request with a changedAfter parameter provided.
+          properties:
+            personnelNumber:
+              type: string
+              description: >
+                For persons known at CEPA, the personnelNumber contains the CEPA number
+            employerNumber:
+              type: string
+              description: >
+                This is the employer's number in the alfapass system. This a number but alfapass communicates it with leading zero's and is threated as stirng in ICAROS
+                According to alfapass the maximum is 99999.
+            groupNumber:
+              type: number
+              enum: [1,2,3,4]
+              description: >
+                Number of the alfapass cardholder group
+                1: Truck drivers
+                2: Longshoremen
+                3: Other
+                4: Port facility staff
+            subgroupNumber:
+              type: number
+              nullable: true
+              enum: [1,2,3,4,5,6,7,8,9,10,11, null]
+              description: >
+                Number of the alfapass cardholder subgroup
+                SUBGROUP values for GROUP=1 :
+                1: Starter 
+                SUBGROUP values for GROUP=3 :
+                1: Pilotage
+                2: Other
+                3: Railway
+                4: Emergency & authority
+                5: Shipchandler & repair
+                SUBGROUP values for GROUP=2 :
+                6: Havenarbeiders algemeen contingent
+                7: Havenarbeiders logistiek contingent
+                8: Vakman
+                9: Cepaboek
+                10: Cepaboek
+                11: Privé bewakingsfirma’s
+            cards:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [alfapass]
+                    description: >
+                      Type of card. Currently all cards are Alfapasses
+                  number:
+                    type: number
+                    format: int64
+                    minimum: 1
+                    description: >
+                      Unique number, identifying card
+                  customerCode:
+                    type: number
+                    description: >
+                      Port Facility customer code aka site code
+                  isValid:
+                    type: boolean
+                    description: >
+                       The actual state of the alfapass at the moment of sending.
+                       This state is combined representation of the actual cardState in combination with validation, Invalid and expiration date.
+                  state:
+                    type: number
+                    enum: [104,105,106]
+                    description: >
+                      The base state of the alfapass
+                      104: Card activated
+                      105: Card deactivated
+                      106: Card Locked / Alarm (in case of card loss)  
+                      
+                      When the state is 104 then the real state depends on a combination of the validation, invalid and expiration dates. The dates can make the state invalid or expired.
+                      
+                      State 105 and 106 will make that the alfapass not work, independent of the validation or other dates
+                  validFrom:
+                    type: string
+                    format: date
+                    description: >
+                      The date when the alfapass becomes active. Before this date it is inactive. When null then there is no validation period and then alfapass is always valid (other dates may set it invald)
+                      Format "YYYY-MM-DD"
+                  validTo:
+                    type: string
+                    format: date
+                    description: >
+                      Up to and including this date the alfapass is active.
+                      After this date the alfapass becomes inactive. When null then there is no validation period and then alfapass is always valid (other dates may set it invald)
+                       When cardValidFrom is null, this will be null also.
+                      Format "YYYY-MM-DD"                
+                  invalidFrom:
+                    type: string
+                    format: date
+                    description: >
+                      From this date the alfapass becomes inactive. When null then there is no inactive period and then alfapass is always valid (other dates may set it invald)
+                      Format "YYYY-MM-DD"                  
+                  inValidTo:
+                    type: string
+                    format: date
+                    description: >
+                      Up to and including this date the alfapass becomes inactive. When null then there is no inactive period and then alfapass is always valid (other dates may set it invald)
+                      When cardInvalidFrom is null, this will be null also.
+                      Format "YYYY-MM-DD"  
+                  expiration:
+                    type: string
+                    format: date
+                    description: >
+                      Up to and including this date the alfapass is active. After this date the alfapass is expired. When null then there is no expiration and then alfapass is always valid (other dates may set it invald)
+                      Format "YYYY-MM-DD"                 
+                required:
+                  - type
+                  - number
+                  - customerCode
+                  - isValid
+                  - state
+          required:
+            - personnelNumber
+            - employerNumber
+            - groupNumber
+      required:
+        - id
+        - version
+    OKResponse:
+      type: object
+      properties:
+        activityId:
+          type: string
+          description: 'This value can be used to lookup internal logs for this request'
+        status:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        activityId:
+          type: string
+          description: 'This value can be used to lookup internal logs for this request'
+        status:
+          type: string
+        description:
+          type: string
+          description: 'A description of the error'
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      
+security:
+  - basicAuth: []
